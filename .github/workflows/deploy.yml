@@ -86,11 +86,11 @@ jobs:
       if: steps.plan.outcome == 'failure'
       run: exit 1
     
-    # - name: Terraform destroy
-    #   env:
-    #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     AWS_DEFAULT_REGION: ${{ env.AWS_REGION }} 
-    #   run: |
-    #     cd terraform
-    #     terraform destroy -auto-approve
+    - name: Terraform Apply
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ env.AWS_REGION }} 
+      run: |
+        cd terraform
+        terraform apply -auto-approve
