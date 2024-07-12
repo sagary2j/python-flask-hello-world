@@ -1,5 +1,4 @@
 ## Hello World Flask Application Deployment using AWS ECS and AWS DynamoDB
-=======================
 
 This is a simple "Hello World" application that exposes two HTTP-based APIs:
 
@@ -16,62 +15,38 @@ Requirements
 * AWS account for deployment
 * AWS DynamoDB
 
-### 0. Contents
-- `app/`
-  - contains a Python Flask application, which is hooked up to DynamoDB
-- `terraform/`
-  - contains the terraform code necessary to deploy the application into AWS
-  
-### 1. Local Development Run
+Deployment Architecture
+------------
+* Cloud Platform: AWS (Amazon Web Services)
+* Github Action: CI/CD Deployment.
+* AWS ECS: To run the application as a containers in EC2.
+* AWS DynamoDB: Amazon DynamoDB is a fully managed proprietary NoSQL database.
+* AWS S3: For storing terraform state file.
+* AWS CloudWatch: For logging and monitoring.
 
-1. Install dependencies: `pip install flask sqlite3`
+### 1. Contents
+- `./applocal.py`
+  - contains a Python Flask application, which is integrated with SQLite3
+- `./app.py`
+  - contains a Python Flask application, which is integrated with DynamoDB the same applicaion can be used to run locally except you need to have aws dynamodb database deployed already.
+- `terraform/`
+  - contains the terraform code necessary to deploy the application into AWS ECS
+  
+### 2. How to run and test locally
+
+1. Install dependencies: `pip install flask sqlite3 boto3`
 2. Run the application: `python applocal.py`
 3. Run test: `python -m unittest tests/test_app.py`
 3. Test the APIs using `curl` or a tool like Postman
 
-### 2. How-to Deploy into AWS ECS using github action CI/CD and Terraform for IAC
-general workflow: 
-1. work and build the docker image
-2. tag the docker image with the environment variable(see example below)
-3. push the image to ecr repository(see example below)
-4. run terraform init & plan, then apply
-5. terraform will output the alb url at the end of the run
+### 3. How-to Deploy into AWS ECS using github action CI/CD and Terraform for IAC
+General workflow: 
+1. For the very 1st time, Run the `sh setup.sh` command which will create ECR repository and build, tag and push the image into it.
+2. As soon as the changes are pushed into git repository branches like main and develop it will trigger the GHA CI/CD to build and deploy into ECS using Terraform
+5. Terraform will output the alb url at the end of the GHA run.
 
-## 3. Steps
+## 4. Steps
 - Download and extract this repo
 
-
-(docker)
-- run this command in terminal:
-
-export AWS_ID=$(aws sts get-caller-identity --query Account --output text) && export AWS_REGION=$(aws configure get region &&--output text) && export AWS_ECR=flask-docker-twingate
-
-- run the shell script: setup.sh (this will connect and login to aws ecr)  
-- from the app folder, run docker build
-- tag the image:
-docker tag $AWS_ECR:latest $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_ECR:latest
-- push the image to ecr repository:
-docker push $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$AWS_ECR:latest
-
-
-(terraform)
-- once the image was uploded to ecr, enter the terraform directory and create a file "credentials", insert:
-
-[default]
-aws_access_key_id=<access_key>
-aws_secret_access_key=<secret_access_key>
-region=us-west-2
-output=json
-
-- set the access key & secret access key to the credentials file
-
-- run:
-terraform init
-- after we initialized the working directory, run the plan:
-terraform plan
-- if the plan is without any errors, we can apply to create the stack
-terraform apply
-
-- after the run, terraform will output the alb url, use it.
 
 

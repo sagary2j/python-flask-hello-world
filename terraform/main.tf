@@ -607,3 +607,22 @@ resource "aws_dynamodb_table" "user_table" {
     projection_type = "ALL"
   }
 }
+
+#DynamoDB Endpoint
+resource "aws_vpc_endpoint" "dynamodb_Endpoint" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.us-east-1.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private_1.id, aws_route_table.private_2.id]
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Principal" : "*",
+        "Action" : "*",
+        "Resource" : "*"
+      }
+    ]
+  })
+}
