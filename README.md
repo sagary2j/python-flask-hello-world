@@ -36,7 +36,7 @@ Deployment Architecture
 
 1. Install dependencies: `pip install flask sqlite3 boto3`
 2. Run the application: `python applocal.py`
-3. Run test: `python -m unittest tests/test_app.py`
+3. Run test: `python3 -m unittest tests/test_app.py`
 3. Test the APIs using `curl` or a tool like Postman
 
 ### 3. How-to Deploy into AWS ECS using github action CI/CD and Terraform for IAC
@@ -45,8 +45,28 @@ General workflow:
 2. As soon as the changes are pushed into git repository branches like main and develop it will trigger the GHA CI/CD to build and deploy into ECS using Terraform
 5. Terraform will output the alb url at the end of the GHA run.
 
-## 4. Steps
-- Download and extract this repo
+## 4. Response Examples
+```
+Design and code a simple "Hello World" application that exposes the following HTTP-based APIs: 
 
+Description: Saves/updates the given user's name and date of birth in the database. 
+Request: PUT /hello/<username> { "dateOfBirth": "YYYY-MM-DD" }
+Response: 204 No Content
+ 
+Note:
+<usemame> must contains only letters. 
+YYYY-MM-DD must be a date before the today date. 
 
+Description: Returns hello birthday message for the given user 
+Request: Get /hello/<username> 
+Response: 200 OK 
 
+Response Examples: 
+A. If username's birthday is in N days: { "message": "Hello, <username>! Your birthday is in N day(s)" } 
+B. If username's birthday is today: { "message": "Hello, <username>! Happy birthday!" } 
+
+```
+
+## 4. Destroy the cluster
+1. Run the command: `terraform destroy --auto-approve=true`
+2. Delete the ECR repository and s3 bucket

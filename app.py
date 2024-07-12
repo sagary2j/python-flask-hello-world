@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify
 import boto3
 from botocore.exceptions import ClientError
