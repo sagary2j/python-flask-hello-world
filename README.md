@@ -5,6 +5,9 @@ This is a simple "Hello World" application that exposes two HTTP-based APIs:
 * `PUT /hello/<username>`: Saves or updates the given user's name and date of birth in the database.
 * `GET /hello/<username>`: Returns a hello message for the given user, including their birthday message if it's today or in the next N days.
 
+![Architecture](https://github.com/sagary2j/python-flask-hello-world/blob/develop/architecture-ECS-flask.drawio.png)
+
+
 Requirements
 ------------
 * Docker(local)
