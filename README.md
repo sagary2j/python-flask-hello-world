@@ -72,6 +72,6 @@ B. If username's birthday is today: { "message": "Hello, <username>! Happy birth
 
 ```
 
-## 4. Destroy the cluster
+## 5. Destroy the cluster
 1. Run the command: `terraform destroy --auto-approve=true`
 2. Delete the ECR repository and s3 bucket
