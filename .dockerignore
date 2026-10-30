@@ -1,0 +1,6 @@
+*
+!app/
+!wsgi.py
+!gunicorn.conf.py
+!requirements.txt
+**/__pycache__

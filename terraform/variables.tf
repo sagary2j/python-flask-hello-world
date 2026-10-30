@@ -1,104 +1,124 @@
-# The CIDR block for the VPC to create.
+variable "aws_region" {
+  description = "AWS region to deploy into."
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "project_name" {
+  description = "Prefix for resource names. Must match the bootstrap stack so the deploy role can manage IAM roles."
+  type        = string
+  default     = "flask-hello-world"
+}
+
+variable "image_tag" {
+  description = "Tag of the container image in ECR to deploy (CI passes the git commit SHA)."
+  type        = string
+}
+
+variable "ecr_repository_name" {
+  description = "ECR repository created by the bootstrap stack."
+  type        = string
+  default     = "flask-docker-app"
+}
+
+variable "dynamodb_table_name" {
+  description = "DynamoDB table holding usernames and dates of birth."
+  type        = string
+  default     = "users"
+}
+
+variable "dynamodb_deletion_protection" {
+  description = "Protect the users table from accidental deletion (disable before terraform destroy)."
+  type        = bool
+  default     = true
+}
+
 variable "vpc_cidr" {
-  description = "The CIDR block for the VPC."
+  description = "CIDR block for the VPC."
   type        = string
   default     = "10.0.0.0/16"
 }
 
-# A boolean flag to enable/disable DNS support in the VPC.  Defaults true.
-variable "vpc_dns_support" {
-  description = "Should DNS support be enabled for the VPC?"
-  type        = bool
-  default     = true
-}
-
-# A boolean flag to enable/disable DNS hostnames in the VPC.  Defaults true.
-variable "vpc_dns_hostnames" {
-  description = "Should DNS hostnames support be enabled for the VPC?"
-  type        = bool
-  default     = true
-}
-
-# A list of allowed availability zones.
-variable "availability_zone" {
-  description = "A list of allowed availability zones."
-  type        = list(any)
+variable "availability_zones" {
+  description = "Availability zones for the subnets; one public and one private subnet per zone."
+  type        = list(string)
   default     = ["us-east-1a", "us-east-1c"]
 }
 
-# A boolean flag to map the public IP on launch for public subnets.  Defaults true.
-variable "map_public_ip" {
-  description = "Specify true to indicate that instances launched into the subnet should be assigned a public IP address."
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for the public subnets (ALB and NAT gateway), one per availability zone."
+  type        = list(string)
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for the private subnets (Fargate tasks), one per availability zone."
+  type        = list(string)
+  default     = ["10.0.3.0/24", "10.0.4.0/24"]
+}
+
+variable "single_nat_gateway" {
+  description = "Use one NAT gateway for all private subnets. Cheaper, but egress depends on a single AZ."
   type        = bool
   default     = true
 }
 
-# The CIDR block for the public subnet.  This block should be a range within the above VPC CIDR.
-variable "public_cidr_1" {
-  description = "The CIDR block for the first public subnet."
-  type        = string
-  default     = "10.0.1.0/24"
+variable "allowed_ingress_cidrs" {
+  description = "CIDR blocks allowed to reach the load balancer."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
-# The CIDR block for the public subnet.  This block should be a range within the above VPC CIDR.
-variable "public_cidr_2" {
-  description = "The CIDR block for the second public subnet."
+variable "certificate_arn" {
+  description = "Optional ACM certificate ARN. When set, the ALB serves HTTPS and redirects HTTP to HTTPS."
   type        = string
-  default     = "10.0.2.0/24"
+  default     = null
 }
 
-# The CIDR block for the first private subnet.  This block should be a range within the above VPC CIDR.
-variable "private_cidr_1" {
-  description = "The CIDR block for the first private subnet."
-  type        = string
-  default     = "10.0.3.0/24"
-}
-
-# The CIDR block for the second private subnet.  This block should be a range within the above VPC CIDR.
-variable "private_cidr_2" {
-  description = "The CIDR block for the second private subnet."
-  type        = string
-  default     = "10.0.4.0/24"
-}
-
-# This variable defines the desired number of instances to launch in the ECS cluster.
-variable "desired_capacity" {
-  description = "Number of instances to launch in the ECS cluster."
+variable "container_port" {
+  description = "Port gunicorn listens on inside the container."
   type        = number
-  default     = 1
+  default     = 8000
 }
 
-# This variable defines the maximum number of instances to launch in the ECS cluster.
-variable "maximum_capacity" {
-  description = "Maximum number of instances that can be launched in the ECS cluster."
+variable "task_cpu" {
+  description = "Fargate task CPU units."
+  type        = number
+  default     = 256
+}
+
+variable "task_memory" {
+  description = "Fargate task memory (MiB)."
+  type        = number
+  default     = 512
+}
+
+variable "min_tasks" {
+  description = "Minimum number of running tasks."
+  type        = number
+  default     = 2
+}
+
+variable "max_tasks" {
+  description = "Maximum number of running tasks."
   type        = number
   default     = 5
 }
 
-# This variable defines the instance type.
-variable "instance_type" {
-  description = "EC2 instance type for ECS launch configuration."
-  type        = string
-  default     = "m5.large"
+variable "cpu_target_percent" {
+  description = "Average service CPU utilisation that autoscaling aims for."
+  type        = number
+  default     = 60
 }
 
-# This variables defines the ECS service name.
-variable "service_name" {
-  description = "The name for the ECS service."
-  type        = string
-  default     = "flask-docker"
+variable "container_insights" {
+  description = "Enable CloudWatch Container Insights on the cluster (extra cost)."
+  type        = bool
+  default     = false
 }
 
-# This variable defines the ECR image URL.
-variable "ecs_image_url" {
-  description = "The desired ECR image URL."
-  type        = string
-  default     = "dkr.ecr.us-east-1.amazonaws.com/flask-docker-twingate"
-}
-
-# This variable defines the name for the DynamoDB table used by the container app.
-variable "dynamodb_table_name" {
-  description = "The desired DynamoDB table name."
-  type        = string
-  default     = "users"
+variable "log_retention_days" {
+  description = "Retention for the application log group."
+  type        = number
+  default     = 14
 }
