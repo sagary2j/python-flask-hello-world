@@ -121,8 +121,6 @@ already-pushed image.
    ```bash
    cd terraform/bootstrap
    terraform init
-   # The repository already exists (created by the old setup.sh), so import it first:
-   terraform import aws_ecr_repository.app flask-docker-app
    terraform apply   # add -var create_oidc_provider=false if the account already has the GitHub OIDC provider
    ```
 
@@ -132,23 +130,8 @@ already-pushed image.
 
 3. Delete the old `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secrets, and deactivate those IAM keys.
 
-### Migrating from the previous ECS-on-EC2 stack
-
-The main stack reuses the same state file. `moved` blocks keep the VPC, subnets,
-first NAT gateway and the `users` table in place, so **no data is lost**. The old
-EC2 cluster, ASG, launch configuration, ALB and IAM roles are destroyed and
-replaced by the Fargate equivalents.
-
-The deploy role can only manage IAM roles prefixed with `flask-hello-world-`, so the
-old roles (`ecs_service_role`, `ec2_role`, `autoscaling_role`) can't be deleted by CI.
-Run that one migration apply locally with admin credentials:
-
-```bash
-cd terraform
-terraform init
-terraform plan -var image_tag=<commit-sha-already-in-ECR> -out=tfplan   # review it
-terraform apply tfplan
-```
+4. Push to `develop` (or run the workflow manually). The deploy job pushes the
+   first image and creates the main stack from scratch.
 
 ### HTTPS
 
