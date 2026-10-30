@@ -1,0 +1,151 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: flask-docker-app
+  TERRAFORM_VERSION: 1.14.9
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: |
+          ruff check --output-format=github .
+          ruff format --check .
+
+      - name: Pytest
+        run: pytest --cov --cov-report=term-missing
+
+  container:
+    name: Build and smoke-test image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: flask-hello:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container and call the API
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e STORAGE_BACKEND=sqlite -e SQLITE_PATH=/tmp/users.db flask-hello:ci
+          curl -fsS --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/health
+          curl -fsS -X PUT -H 'Content-Type: application/json' \
+            -d '{"dateOfBirth": "1990-01-15"}' http://localhost:8000/hello/ci
+          curl -fsS http://localhost:8000/hello/ci | grep -q 'Hello, ci!'
+          test "$(docker exec app id -u)" != "0"
+
+      - name: Container logs
+        if: always()
+        run: docker logs app
+
+  terraform:
+    name: Terraform checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - run: terraform fmt -check -recursive terraform
+
+      - name: Validate and test
+        run: |
+          for dir in terraform terraform/bootstrap; do
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done
+          terraform -chdir=terraform test
+
+  deploy:
+    name: Deploy to ECS Fargate
+    needs: [test, container, terraform]
+    if: >-
+      github.ref_name == github.event.repository.default_branch &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          image="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          # Tags are immutable, so a re-run of the same commit reuses the existing image.
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+               --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
+            echo "Image $image already exists"
+          else
+            docker build -t "$image" .
+            docker push "$image"
+          fi
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -var="image_tag=$IMAGE_TAG" -out=tfplan
+
+      - name: Terraform apply
+        working-directory: terraform
+        run: terraform apply -input=false tfplan
+
+      - name: Smoke test
+        working-directory: terraform
+        run: |
+          url="$(terraform output -raw alb_url)"
+          curl -fsS --retry 12 --retry-delay 10 --retry-all-errors "$url/health"
+          echo "### Deployed \`$IMAGE_TAG\` to $url" >> "$GITHUB_STEP_SUMMARY"
