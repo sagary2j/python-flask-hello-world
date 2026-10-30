@@ -33,21 +33,10 @@ All errors are JSON (`{"error": "..."}`); internal details are logged, never ret
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  user((Client)) -->|HTTP/HTTPS| alb[Application Load Balancer<br/>public subnets]
-  alb -->|:8000| task1[Fargate task<br/>gunicorn + Flask]
-  alb -->|:8000| task2[Fargate task<br/>gunicorn + Flask]
-  subgraph private[Private subnets, 2 AZs]
-    task1
-    task2
-  end
-  task1 & task2 -->|gateway endpoint| ddb[(DynamoDB<br/>users)]
-  task1 & task2 -->|NAT| ecr[ECR / CloudWatch Logs]
-  gha[GitHub Actions] -->|OIDC, no stored keys| iam[Deploy role]
-  iam --> ecr
-  iam -->|terraform apply| alb
-```
+![Architecture: Flask on ECS Fargate](docs/architecture.png)
+
+The diagram is generated from [`docs/architecture.py`](docs/architecture.py) (requires Graphviz and `pip install diagrams`).
+Regenerate it with `python docs/architecture.py` after infrastructure changes.
 
 - Tasks run in private subnets with no public IP; only the ALB security group can reach them.
 - The task role can only `GetItem`/`PutItem` on the `users` table.
@@ -64,6 +53,7 @@ Dockerfile           Multi-stage, non-root image with a health check
 terraform/           Main stack: VPC, ALB, ECS Fargate, DynamoDB, IAM, autoscaling
 terraform/tests/     terraform test suite with a mocked AWS provider
 terraform/bootstrap/ One-time stack: GitHub OIDC provider, deploy role, ECR repository
+docs/                Architecture diagram (diagram-as-code)
 .github/workflows/   CI/CD pipeline
 ```
 
