@@ -19,7 +19,7 @@ from diagrams.onprem.vcs import Github
 GRAPH = {
     "fontsize": "26",
     "labelloc": "t",
-    "dpi": "130",
+    "dpi": "96",
     "fontname": "Helvetica",
     "pad": "0.6",
     "nodesep": "0.7",
